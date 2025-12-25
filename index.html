@@ -473,6 +473,51 @@
             font-weight: 500;
         }
 
+        .notifications-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 350px;
+            width: 100%;
+        }
+
+        .notification {
+            padding: 15px 25px;
+            border-radius: 8px;
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            animation: slideIn 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .notification.success {
+            background: #10b981;
+        }
+
+        .notification.error {
+            background: #ef4444;
+        }
+
+        .notification.hiding {
+            animation: slideOut 0.3s ease;
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+
         @media (max-width: 640px) {
             .header-buttons {
                 position: relative;
@@ -499,6 +544,10 @@
                 white-space: nowrap;
                 font-size: 0.85rem;
                 padding: 10px 15px;
+            }
+
+            .notifications-container {
+                max-width: 280px;
             }
         }
 
@@ -567,6 +616,17 @@
                 padding-left: 15px;
                 max-width: 100%;
             }
+
+            .notifications-container {
+                max-width: 250px;
+                top: 10px;
+                right: 10px;
+            }
+            
+            .notification {
+                padding: 12px 20px;
+                font-size: 0.9rem;
+            }
         }
 
         @media (max-width: 360px) {
@@ -589,10 +649,16 @@
                 padding: 8px 10px;
                 font-size: 0.75rem;
             }
+
+            .notifications-container {
+                max-width: 220px;
+            }
         }
     </style>
 </head>
 <body>
+    <div class="notifications-container" id="notificationsContainer"></div>
+    
     <div class="container">
         <div class="header-buttons">
             <button class="info-btn" id="infoBtn">Как это работает?</button>
@@ -945,9 +1011,52 @@
             }
         }
 
+        class NotificationManager {
+            constructor() {
+                this.container = document.getElementById('notificationsContainer');
+                this.notifications = [];
+                this.maxNotifications = 5;
+            }
+
+            show(message, type) {
+                const notification = document.createElement('div');
+                notification.className = `notification ${type}`;
+                notification.textContent = message;
+
+                this.notifications.push(notification);
+                this.container.appendChild(notification);
+
+                if (this.notifications.length > this.maxNotifications) {
+                    const oldest = this.notifications.shift();
+                    if (oldest.parentNode) {
+                        oldest.classList.add('hiding');
+                        setTimeout(() => {
+                            if (oldest.parentNode) {
+                                oldest.parentNode.removeChild(oldest);
+                            }
+                        }, 300);
+                    }
+                }
+
+                setTimeout(() => {
+                    notification.classList.add('hiding');
+                    setTimeout(() => {
+                        if (notification.parentNode) {
+                            notification.parentNode.removeChild(notification);
+                            const index = this.notifications.indexOf(notification);
+                            if (index > -1) {
+                                this.notifications.splice(index, 1);
+                            }
+                        }
+                    }, 300);
+                }, 3000);
+            }
+        }
+
         class App {
             constructor() {
                 this.crypto = new SteganographyCrypto();
+                this.notificationManager = new NotificationManager();
                 this.initElements();
                 this.bindEvents();
                 this.updateCharCounts();
@@ -1143,27 +1252,7 @@
             }
 
             showNotification(message, type) {
-                const notification = document.createElement('div');
-                notification.textContent = message;
-                notification.style.cssText = `
-                    position: fixed;
-                    top: 20px;
-                    right: 20px;
-                    padding: 15px 25px;
-                    background: ${type === 'success' ? '#10b981' : '#ef4444'};
-                    color: white;
-                    border-radius: 8px;
-                    z-index: 1000;
-                    animation: slideIn 0.3s ease;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                `;
-
-                document.body.appendChild(notification);
-
-                setTimeout(() => {
-                    notification.style.animation = 'slideOut 0.3s ease';
-                    setTimeout(() => notification.remove(), 300);
-                }, 3000);
+                this.notificationManager.show(message, type);
             }
 
             showLoading(show) {
@@ -1189,23 +1278,6 @@
         document.addEventListener('DOMContentLoaded', () => {
             new App();
         });
-
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes slideIn {
-                from { transform: translateX(100%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
-            }
-            
-            @keyframes slideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(100%); opacity: 0; }
-            }
-            
-            .success { color: #10b981 !important; }
-            .error { color: #ef4444 !important; }
-        `;
-        document.head.appendChild(style);
     </script>
 </body>
 </html>
